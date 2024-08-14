@@ -1,0 +1,258 @@
+
+<!-- kode ini banyak digenerate dari AI -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Presensi QR </title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        function setThemeClass() {
+            document.documentElement.className= Telegram.WebApp.colorScheme;
+        }
+        Telegram.WebApp.onEvent('themeChanged', setThemeClass)
+        setThemeClass();
+        
+    </script>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+    <style>
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        #reader {
+            width: 50%;
+            height: 50%;
+            margin: 0 auto;
+        }
+    </style>
+<body>
+    <div class="container">
+        
+        <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+            <div class="container bg-light p-5 rounded">
+                <h1 class="text-center">Admin Presesi Anak Telyu</h1>
+                <div class="form-group">
+                    <label for="question">ID Presensi</label>
+                    <input type="text" class="form-control" id="question" placeholder="Masukan ID Presensi yang sudah ditentukan">
+                </div>
+                <button type="submit" onclick="submit()" class="btn btn-primary">Submit</button>
+                <h3 id="informasi" class="mt-4">Silahkan masukan data yang sesuai</h3>
+    <div id="reader"></div>
+
+                <div id="loading" class="d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                   
+         </div>
+                </div>
+            </div>
+        </div>
+          
+        </div>
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        const urlFetch = "https://script.google.com/macros/s/AKfycbye0M2aej5ekSEZYTXSze1_97wKs_YwGnwE-0D5royo0wBdjuY7BK1Tzy1dWJLApGsZug/exec?action=fetchKonfigurasiPresensi"
+        const urlSave = "https://script.google.com/macros/s/AKfycbye0M2aej5ekSEZYTXSze1_97wKs_YwGnwE-0D5royo0wBdjuY7BK1Tzy1dWJLApGsZug/exec?action=appendDataPresensiUser"
+            const html5QrCode = new Html5Qrcode("reader");
+
+// String Base64 yang ingin didekode
+
+// Mendekode Base64
+
+// Menampilkan hasil
+const lokasi = {}
+if (navigator.geolocation){
+                navigator.geolocation.getCurrentPosition((position)=>{
+lokasi.longitude = position.coords.longitude;
+lokasi.latitude = position.coords.latitude;}, (error)=>{console.log(error)});
+            }
+
+        const tg = Telegram.WebApp
+        tg.ready();
+        let konfigurasi_presensi = {}
+        // Get user data from Telegram WebApp
+        const user = tg.initDataUnsafe.user;
+        // if (user == null) {
+        //     document.querySelector('.container').innerHTML = '<h1>Maaf, Anda tidak memiliki akses ke halaman ini</h1>';
+        // }
+        // Get the form
+        var info = document.querySelector('#informasi');
+        var loading = document.querySelector('#loading');
+        function submit() {
+            // navigator.mediaDevices.getUserMedia({ video: true })
+
+
+            console.log('submit')
+            
+            // Get the value of the input field
+            var answer = document.querySelector('#question').value ;
+            answer = answer.trim();
+            showLoading();
+            fetchKonfigurasiPresensi(answer);
+            // Log the value to the console
+        }
+
+        function showLoading() {
+            loading.classList.remove('d-none');
+        }
+
+        function hideLoading() {
+            loading.classList.add('d-none');
+        }
+                
+                async function fetchKonfigurasiPresensi(id_presensi){
+                  
+                    const konfigurasi_presensi_cache = localStorage.getItem(`konfigurasi_presensi_${id_presensi}`);
+                    if (konfigurasi_presensi_cache) {
+                        konfigurasi_presensi = JSON.parse(konfigurasi_presensi_cache);
+                        info.innerHTML = printObject(konfigurasi_presensi);
+                        scanQr();
+                    } else {
+                        try {
+                            const response = await fetch(urlFetch, {
+                                method: 'POST',
+                                redirect: 'follow',
+                                  // Opsi redirect: 'follow', 'error', atau 'manual'
+
+                                headers: {
+                                    'Content-Type': 'text/plain'
+                                },
+                                body: JSON.stringify({ id_presensi:  id_presensi, id_telegram: user?.id ?? 0 , lokasi})
+                            });
+                            hideLoading();
+                            const responseData = await response.json();
+                            konfigurasi_presensi = responseData;
+                            if (responseData.error) {
+                                info.innerHTML = responseData.error;
+                            } else if (responseData.id_presensi) {
+                                info.innerHTML = printObject(responseData);
+                                scanQr();
+                                localStorage.setItem(`konfigurasi_presensi_${id_presensi}`, JSON.stringify(responseData));
+                            } else {
+                                info.innerHTML = 'Peremintaan gagal!' + ' ' + response.status + ' ' + response.statusText;
+                            }
+                        } catch (error) {
+                            info.innerHTML = 'Peremintaan gagal!' + ' ' + error.message;
+                        }
+                    }
+                }
+        
+    
+        function scanQr() {
+            
+            try {
+                showScanQrPopup();
+                
+            } catch (error) {
+                showScanQrBrowser();
+            }
+                
+            
+           
+        }
+        function showScanQrPopup(){
+            tg.showScanQrPopup({
+                text: "Presensi: " + konfigurasi_presensi.nama_kegiatan?? 'Nama kegiatan tidak ditemukan'
+            }, processQrCode);
+        }
+        function showScanQrBrowser(){
+            hideLoading()
+            const config = { fps: 10, qrbox: {width: 250, height: 250} };
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                qrCodeMessage => {
+                    html5QrCode.stop();
+
+                    info.innerHTML = "Tunggu sebentar...";
+                    processQrCode(qrCodeMessage);
+
+                },
+                errorMessage => {
+                    info.innerHTML = "Posisikan kode QR di tengah kamera";
+                })
+
+        }
+        function processQrCode(text) {
+
+showLoading();
+try {
+    tg.closeScanQrPopup();
+    
+} catch (error) {
+    
+}
+
+
+fetch(urlSave, {
+    
+    method: 'POST',
+    redirect: 'follow',
+
+    headers: {
+        'Content-Type': 'text/plain'
+        
+    },
+    body: JSON.stringify({ 
+        id_presensi: konfigurasi_presensi.id_presensi, 
+        id_telegram: "nanti dihapus",//user?.id, 
+        url_qr_peserta: text,
+        fullname_telegram: "nanti dihapus",//(user?.first_name + user?.last_name)
+        lokasi
+    })
+})
+.then(response => response.json())
+.then(responseData => {
+    hideLoading();
+    if (responseData.nama) {
+        tg.showAlert("Berhasil\n" + printObject(responseData));
+    } else {
+        info.innerHTML = printObject(responseData);
+        tg.showAlert('Gagal\n' + printObject(responseData));
+    }
+})
+.catch(error => {
+    hideLoading();
+    tg.showAlert('Gagal\n' + error.message);
+});
+}
+        
+        function printObject(object) {
+            var output = '';
+            
+            
+            for (var property in object) {
+                output += property + ': ' + object[property]+';\n ';
+            }
+            return output;
+        }
+        function decodeBase64(encodedString) {
+            try {
+                
+                var decodedString = atob(encodedString);
+                return decodedString;
+            } catch (error) {
+             return "bisa jadi bukan base46";   
+            }
+            
+        }
+       
+    </script>
+</body>
+</html>
